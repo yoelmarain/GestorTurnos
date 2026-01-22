@@ -17,6 +17,16 @@ class ClienteView(viewsets.ModelViewSet):
     queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
 
+    @action(detail=True, methods=['get'])
+    def turnos(self, request, pk=None):
+        """
+        Devuelve todos los turnos de un cliente específico
+        """
+        cliente = self.get_object()  #obtiene el cliente actual segun el pk
+        turnos = Turno.objects.filter(cliente=cliente)  #filtra los turnos por el cliente actual
+        serializer = TurnoSerializer(turnos, many=True)  #serializa la lista de turnos
+        return Response(serializer.data)  #devuelve la respuesta con los datos serializados
+
 class ProfesionalView(viewsets.ModelViewSet):
     queryset = Profesional.objects.all()
     serializer_class = ProfesionalSerializer
@@ -55,16 +65,17 @@ class ProfesionalView(viewsets.ModelViewSet):
         # Iterar por cada día desde hoy hasta una semana
         dia_actual = fecha_hoy.date()
         while dia_actual <= fecha_limite.date():
-            # Generar slots para el día actual
-            hora_slot = datetime.combine(dia_actual, hora_inicio)
-            hora_final_dia = datetime.combine(dia_actual, hora_fin)
+            # Generar slots para el día actual (con zona horaria)
+            hora_slot = timezone.make_aware(datetime.combine(dia_actual, hora_inicio))  #combina la fecha del dia actual con la hora de inicio
+            hora_final_dia = timezone.make_aware(datetime.combine(dia_actual, hora_fin)) #combina la fecha del dia actual con la hora de fin
             
+            #bucle interno para recorrer un dia
             while hora_slot < hora_final_dia:
-                slot_end = hora_slot + timedelta(minutes=intervalo_minutos)
+                slot_end = hora_slot + timedelta(minutes=intervalo_minutos)  #guarda fecha y hora del fin del slot
                 
                 # Verificar si este slot NO está reservado
                 slot_ocupado = False
-                for turno in turnos_reservados:
+                for turno in turnos_reservados:   #recorre los turnos reservados del profesional
                     turno_inicio = turno.fecha_turno
                     turno_fin = turno.fecha_turno + timedelta(minutes=duracion_minutos)
                     
